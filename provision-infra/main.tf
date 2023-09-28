@@ -9,17 +9,21 @@ provider "azurerm" {
     storage_account_access_key = data.azurerm_storage_account.storage_account.primary_access_key
   }*/
 }
-
+# Define a variable to set a prefix for resource names
 variable "deployment_name_prefix" {
   description = "A prefix for resource names"
   type        = string
   default     = "myapp"
 }
 
+# Create an Azure resource group with a name that includes the deployment name prefix
+
 resource "azurerm_resource_group" "rg" {
   name     = "${var.deployment_name_prefix}-ISS-IAC"
   location = "swedencentral"
 }
+
+# Create an Azure virtual network with a name that includes the deployment name prefix
 resource "azurerm_virtual_network" "vnet" {
     name                = "${var.deployment_name_prefix}-issswevnet"
     address_space       = ["10.40.0.0/16"]
@@ -30,6 +34,9 @@ resource "azurerm_virtual_network" "vnet" {
         environment = "dev"
     }
 }
+
+# Create an Azure subnet for the app service with a name that includes the deployment name prefix
+
 resource "azurerm_subnet" "apps" {
   name                 = "${var.deployment_name_prefix}-apps-subnet"
   resource_group_name  = azurerm_resource_group.rg.name
@@ -44,6 +51,9 @@ resource "azurerm_subnet" "apps" {
     }
   }
 }
+
+# Create an Azure subnet for the API app service with a name that includes the deployment name prefix
+
 resource "azurerm_subnet" "apis" {
     name                 = "${var.deployment_name_prefix}-apis-subnet"
     resource_group_name  = azurerm_resource_group.rg.name
