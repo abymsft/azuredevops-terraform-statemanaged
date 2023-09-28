@@ -1,0 +1,75 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+# Define the trigger for the pipeline to run when changes are made to the main branch or the provision-infra folder
+trigger:
+ branches:
+  include:
+    - main
+ paths:
+  include:
+    - provision-infra/*
+
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- script: echo Preparing Terraform Agent!
+  displayName: 'Preparing to Install TF and TF Plan '
+
+  # Copy the contents of the provision-infra folder to the default working directory
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: 'provision-infra'
+    Contents: '**'
+    TargetFolder: '$(System.DefaultWorkingDirectory)'
+# Install the latest version of Terraform
+- task: TerraformInstaller@1
+  inputs:
+    terraformVersion: 'latest'
+  displayName: "Install latest Terraform"
+
+ # Initialize Terraform 
+- task: TerraformTaskV4@4
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    backendServiceArm: 'iss-tf-iac-provision'
+    backendAzureRmResourceGroupName: 'ISS-IAC'
+    backendAzureRmStorageAccountName: 'tfstoragestateiss001'
+    backendAzureRmContainerName: 'tfstate'
+    backendAzureRmKey: 'tfstate/terraform.tfstate'
+    environmentServiceNameAzureRM: 'iss-tf-iac-provision'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
+  displayName: "Terraform Init"
+
+# Validate the Terraform configuration
+- task: TerraformTaskV4@4
+  inputs:
+    provider: 'azurerm'
+    command: 'validate'
+  displayName: "Terraform Validate"
+
+# Plan the Terraform deployment and save the plan to a file
+
+- task: TerraformTaskV4@4
+  inputs:
+    provider: 'azurerm'
+    backendAzureRmResourceGroupName: 'ISS-IAC'
+    backendAzureRmStorageAccountName: 'tfstoragestateiss001'
+    backendAzureRmContainerName: 'tfstate'
+    backendAzureRmKey: 'tfstate/terraform.tfstate'
+    command: 'plan'
+    commandOptions: '-out=terraform.tfplan'
+    environmentServiceNameAzureRM: 'iss-tf-iac-provision'
+  displayName: "Terraform Plan"
+
+  # Publish the Terraform plan as a build artifact
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathtoPublish: '$(Build.SourcesDirectory)/terraform.tfplan'
+    artifactName: 'terraformPlan'
+    publishLocation: 'Container'

@@ -1,0 +1,66 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+name: 'DeploymentTerraformApply-$(Build.BuildId)'
+trigger:
+ branches:
+  include:
+    - main
+ paths:
+  include:
+    - provision-infra/*
+
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+
+- task: TerraformInstaller@1
+  inputs:
+    terraformVersion: 'latest'
+  displayName: "Install latest Terraform"
+- task: DownloadPipelineArtifact@2
+  displayName: "Download terraform plan artifact"
+  inputs:
+    buildType: 'specific'
+    project: '9b233d79-6567-4eaa-a665-712ccbe695a1'
+    definition: '18' # build pipeline id  
+    specificBuildWithTriggering: true
+    buildVersionToDownload: 'latest'
+    artifactName: 'terraformPlan'
+    targetPath: '$(Pipeline.Workspace)/'
+    
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Pipeline.Workspace)/'
+    Contents: '**/*.tfplan'
+    TargetFolder: '$(System.DefaultWorkingDirectory)'
+  displayName: "Copy TFPlan files to working directory"
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: 'provision-infra'
+    Contents: '**'
+    TargetFolder: '$(System.DefaultWorkingDirectory)'
+  displayName: "Copy TF files"
+- task: TerraformTaskV4@4
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    backendServiceArm: 'iss-tf-iac-provision'
+    backendAzureRmResourceGroupName: 'ISS-IAC'
+    backendAzureRmStorageAccountName: 'tfstoragestateiss001'
+    backendAzureRmContainerName: 'tfstate'
+    backendAzureRmKey: 'tfstate/terraform.tfstate'
+    environmentServiceNameAzureRM: 'iss-tf-iac-provision'
+  displayName: "Terraform Init"
+
+
+- task: TerraformTaskV4@4
+  displayName: "Terraform Apply"
+  inputs:
+    provider: 'azurerm'
+    command: 'apply'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
+    environmentServiceNameAzureRM: 'iss-tf-iac-provision'
